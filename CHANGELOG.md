@@ -8,6 +8,27 @@ Wallet payment verification, rebuilt. A member who sends their tax ISK without p
 
 > Mental model: a wallet transfer is money looking for an invoice. Matching it by tax code is the fast path; assigning it by hand is the fallback. Either way the transfer is claimed exactly once, and every invoice it touches records its slice.
 
+### 🐛 Allow Data Export decided nothing
+
+The setting had never worked. Two of the views reading it were served by a controller that
+did not define the key, two more by a controller that did not pass the flags at all, and
+every one of them fell back to its own default and left the button on. A director could
+switch exporting off and watch nothing change.
+
+It works now, and it means what it says: **off is off for everyone**, directors and admins
+included. It covers mining ledger, tax records, personal exports of both, analytics, theft
+incidents and report downloads. Anyone who turns it off can turn it back on, since only an
+admin can reach the setting.
+
+The check is on the endpoints, not only on the buttons. An export is a GET with a query
+string, so anyone who had used one once still had a working link; hiding the button would
+have looked like a fix without being one. Follow an old link with the setting off and you
+get told it is off, rather than an empty file.
+
+Your settings backup is deliberately outside this. Exporting your own configuration is not
+the same act as taking mining and tax records out of the plugin, and an admin locked out of
+their own backup by a data setting would be a worse surprise than the bug being fixed.
+
 ### 🐛 The assign dialog said upfront payments were off when they were on
 
 Holding a payment as account balance showed a warning that you were overriding a

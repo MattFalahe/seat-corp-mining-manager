@@ -10,9 +10,12 @@ use MiningManager\Models\MiningLedger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
 
 class AnalyticsController extends Controller
 {
+    use GuardsDataExport;
+
     /**
      * Analytics service
      *
@@ -199,10 +202,10 @@ class AnalyticsController extends Controller
                 'heatmap' => $this->analyticsService->getHeatmapData($startDate, $endDate, $corporationId),
             ];
 
-            return view('mining-manager::analytics.charts', compact(
+            return view('mining-manager::analytics.charts', array_merge(compact(
                 'chartData', 'startDate', 'endDate',
                 'corporationId', 'corporations', 'userCorporationId'
-            ));
+            ), ['features' => app(\MiningManager\Services\Configuration\SettingsManagerService::class)->getFeatureFlags()]));
         } catch (\Exception $e) {
             Log::error('Mining Manager: Analytics error: ' . $e->getMessage());
             return back()->with('error', 'An error occurred loading analytics data.');
@@ -301,10 +304,10 @@ class AnalyticsController extends Controller
                     break;
             }
 
-            return view('mining-manager::analytics.compare', compact(
+            return view('mining-manager::analytics.compare', array_merge(compact(
                 'comparisonData', 'comparisonType',
                 'corporationId', 'corporations', 'userCorporationId'
-            ));
+            ), ['features' => app(\MiningManager\Services\Configuration\SettingsManagerService::class)->getFeatureFlags()]));
         } catch (\Exception $e) {
             Log::error('Mining Manager: Analytics error: ' . $e->getMessage());
             return back()->with('error', 'An error occurred loading analytics data.');
@@ -756,6 +759,10 @@ class AnalyticsController extends Controller
      */
     public function export(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         $validated = $request->validate([
             'format' => 'nullable|in:csv,json',
             'start_date' => 'nullable|date',

@@ -240,6 +240,7 @@
     </div>
 
     {{-- EXPORT OPTIONS --}}
+    @if($features['allow_export_data'] ?? true)
     <div class="row">
         <div class="col-12">
             <div class="card card-secondary">
@@ -268,6 +269,7 @@
             </div>
         </div>
     </div>
+    @endif
 
 </div>
 

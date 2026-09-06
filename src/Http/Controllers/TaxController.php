@@ -29,9 +29,12 @@ use Seat\Eveapi\Models\Character\CharacterInfo;
 use Seat\Eveapi\Models\Corporation\CorporationInfo;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
 
 class TaxController extends Controller
 {
+    use GuardsDataExport;
+
     use EnrichesCharacterData;
 
     protected $taxService;
@@ -163,6 +166,7 @@ class TaxController extends Controller
             'tax_tracking' => (bool) ($flags['enable_tax_tracking'] ?? true),
             'wallet_verification' => (bool) ($flags['verify_wallet_transactions'] ?? true),
             'enable_upfront_payments' => (bool) ($flags['enable_upfront_payments'] ?? false),
+            'allow_export_data' => (bool) ($flags['allow_export_data'] ?? true),
 
             // Not feature flags in the service's sense, they live under
             // tax_rates, so these two stay direct reads.
@@ -3313,6 +3317,10 @@ class TaxController extends Controller
      */
     public function export(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         try {
             $status = $request->input('status', 'all');
             $month = $request->input('month');
@@ -3414,6 +3422,10 @@ class TaxController extends Controller
      */
     public function exportPersonal(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         $user = auth()->user();
         $characterIds = $user->characters->pluck('character_id')->toArray();
 

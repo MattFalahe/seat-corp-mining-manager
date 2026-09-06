@@ -11,9 +11,12 @@ use MiningManager\Models\MiningLedger;
 use MiningManager\Services\Theft\TheftDetectionService;
 use MiningManager\Services\Character\CharacterInfoService;
 use Carbon\Carbon;
+use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
 
 class TheftIncidentController extends Controller
 {
+    use GuardsDataExport;
+
     protected $detectionService;
     protected $characterService;
 
@@ -97,14 +100,14 @@ class TheftIncidentController extends Controller
         // Get current status for filter
         $status = $request->input('status');
 
-        return view('mining-manager::theft.index', compact(
+        return view('mining-manager::theft.index', array_merge(compact(
             'incidents',
             'statistics',
             'activeTheftsCount',
             'theftListCount',
             'removedPaidCount',
             'status'
-        ));
+        ), ['features' => app(\MiningManager\Services\Configuration\SettingsManagerService::class)->getFeatureFlags()]));
     }
 
     /**
@@ -271,6 +274,10 @@ class TheftIncidentController extends Controller
      */
     public function export(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         // Build query with same filters as index
         $query = TheftIncident::with(['character', 'corporation', 'miningTax']);
 

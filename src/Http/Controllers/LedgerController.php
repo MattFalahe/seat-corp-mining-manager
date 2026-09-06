@@ -20,9 +20,12 @@ use MiningManager\Services\ReprocessingRegistry;
 use MiningManager\Models\MiningLedgerDailySummary;
 use MiningManager\Http\Controllers\Traits\EnrichesCharacterData;
 use Carbon\Carbon;
+use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
 
 class LedgerController extends Controller
 {
+    use GuardsDataExport;
+
     use EnrichesCharacterData;
 
     protected $characterInfoService;
@@ -204,7 +207,13 @@ class LedgerController extends Controller
             ->orderBy('name')
             ->get();
 
+        // The ledger views read $features['allow_export_data'] to decide whether
+        // to offer an export at all, and were never given it, so their own
+        // fallback kept the button on however the setting was set.
+        $features = $this->settingsService->getFeatureFlags();
+
         return view('mining-manager::ledger.index', compact(
+            'features',
             'ledgerEntries',
             'summary',
             'characters',
@@ -245,6 +254,7 @@ class LedgerController extends Controller
                 'dateFrom' => now()->subMonth()->format('Y-m-d'),
                 'dateTo' => now()->format('Y-m-d'),
                 'characterId' => null,
+                'features' => $this->settingsService->getFeatureFlags(),
                 'message' => trans('mining-manager::ledger.no_characters'),
             ]);
         }
@@ -325,7 +335,10 @@ class LedgerController extends Controller
         $charactersInfo = $this->characterInfoService->getBatchCharacterInfo($userCharacters->toArray());
         $characters = collect($charactersInfo)->sortBy('name');
 
+        $features = $this->settingsService->getFeatureFlags();
+
         return view('mining-manager::ledger.my-mining', compact(
+            'features',
             'ledgerEntries',
             'stats',
             'trendData',
@@ -883,6 +896,10 @@ class LedgerController extends Controller
      */
     public function export(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         $query = MiningLedger::with(['character', 'type', 'solarSystem']);
 
         // Apply filters if provided
@@ -965,6 +982,10 @@ class LedgerController extends Controller
      */
     public function exportPersonal(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         // Get current user's character IDs
         $characterIds = auth()->user()->characters->pluck('character_id');
 

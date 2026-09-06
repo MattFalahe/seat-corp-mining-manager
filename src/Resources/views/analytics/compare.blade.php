@@ -473,9 +473,11 @@
                         {{ trans('mining-manager::analytics.detailed_comparison') }}
                     </h3>
                     <div class="card-tools">
+                        @if($features['allow_export_data'] ?? true)
                         <button type="button" class="btn btn-sm btn-primary" id="exportComparison">
                             <i class="fas fa-download"></i> {{ trans('mining-manager::analytics.export') }}
                         </button>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body table-responsive p-0">

@@ -10,9 +10,12 @@ use MiningManager\Models\ReportSchedule;
 use MiningManager\Models\WebhookConfiguration;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
 
 class ReportController extends Controller
 {
+    use GuardsDataExport;
+
     /**
      * Report generation service
      *
@@ -591,6 +594,10 @@ class ReportController extends Controller
      */
     public function exportView(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         $formats = [
             'csv' => 'CSV (Comma-Separated Values)',
             'json' => 'JSON (JavaScript Object Notation)',
@@ -617,6 +624,10 @@ class ReportController extends Controller
      */
     public function processExport(Request $request)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         try {
             $validated = $request->validate([
                 'export_type' => 'required|in:mining_activity,tax_records,miner_stats,system_stats,ore_breakdown,event_data',
@@ -657,6 +668,10 @@ class ReportController extends Controller
      */
     public function downloadExport(Request $request, $id)
     {
+        if (!$this->dataExportIsAllowed()) {
+            return $this->refuseDataExport($request);
+        }
+
         try {
             // Find the export record (could be stored in mining_reports or separate table)
             $export = MiningReport::findOrFail($id);

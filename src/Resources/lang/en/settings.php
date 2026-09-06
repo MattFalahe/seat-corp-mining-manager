@@ -217,7 +217,8 @@ return [
     'show_character_names' => 'Show Character Names',
     'show_character_names_help' => 'Display full character names in public areas',
     'allow_export_data' => 'Allow Data Export',
-    'allow_export_data_help' => 'Let members export their own mining data',
+    'allow_export_data_help' => 'Exporting is off for everyone when this is off, directors and admins included. Covers mining, tax, analytics, theft and report downloads. Your settings backup is separate and always available.',
+    'data_export_disabled' => 'Exporting is switched off. An administrator can turn it back on under Settings, Features, Allow Data Export.',
     
     // Automation & Processing
     'automation_processing' => 'Automation & Processing',
