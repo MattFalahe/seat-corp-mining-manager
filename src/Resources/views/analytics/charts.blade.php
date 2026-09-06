@@ -94,6 +94,47 @@
                                 @endforeach
                             </select>
                         </div>
+
+                        {{-- Where the rock came from. The axis Overview cannot
+                             answer, and the reason this page exists separately
+                             from it. --}}
+                        <div class="form-group mr-3 mb-2">
+                            <label class="mr-2" for="moon_source"><i class="fas fa-moon"></i> {{ trans('mining-manager::analytics.source') }}</label>
+                            <select name="moon_source" id="moon_source" class="form-control">
+                                @foreach(\MiningManager\Services\Analytics\ChartFilter::MOON_SOURCES as $sourceKey)
+                                    <option value="{{ $sourceKey }}" {{ $filter->moonSource() === $sourceKey ? 'selected' : '' }}>
+                                        {{ trans('mining-manager::analytics.source_' . $sourceKey) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="form-group mr-3 mb-2">
+                            <label class="mr-2" for="ore_category"><i class="fas fa-gem"></i> {{ trans('mining-manager::analytics.ore_type') }}</label>
+                            <select name="ore_category" id="ore_category" class="form-control">
+                                <option value="">{{ trans('mining-manager::analytics.ore_type_all') }}</option>
+                                @foreach(\MiningManager\Services\Analytics\ChartFilter::ORE_CATEGORIES as $catKey => $catLabel)
+                                    <option value="{{ $catKey }}" {{ $filter->oreCategory() === $catKey ? 'selected' : '' }}>
+                                        {{ $catLabel }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Picked by main character, applied across every
+                             character that player mines on. --}}
+                        <div class="form-group mr-3 mb-2">
+                            <label class="mr-2" for="player_id"><i class="fas fa-user"></i> {{ trans('mining-manager::analytics.player') }}</label>
+                            <select name="player_id" id="player_id" class="form-control">
+                                <option value="">{{ trans('mining-manager::analytics.player_all') }}</option>
+                                @foreach($playerOptions ?? [] as $option)
+                                    <option value="{{ $option->main_character_id }}" {{ ($playerId ?? null) == $option->main_character_id ? 'selected' : '' }}>
+                                        {{ $option->name }}@if($option->character_count > 1) ({{ $option->character_count }}){{ '' }}@endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <button type="submit" class="btn btn-primary mr-2 mb-2">
                             <i class="fas fa-filter"></i> {{ trans('mining-manager::analytics.filter') }}
                         </button>
@@ -113,6 +154,53 @@
             </div>
         </div>
     </div>
+
+    @php
+        // Whether this slice returned anything at all. Five empty charts with
+        // no explanation reads as a broken page; the combinations here are many
+        // enough that plenty of them legitimately have no data.
+        $sliceIsEmpty = empty($chartData['mining_trends'] ?? null)
+            && empty($chartData['ore_distribution']['labels'] ?? [])
+            && empty($chartData['miner_activity']['labels'] ?? [])
+            && empty($chartData['system_activity']['labels'] ?? []);
+    @endphp
+
+    @if($filter->isActive() && $sliceIsEmpty)
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-filter"></i> {{ trans('mining-manager::analytics.empty_slice_title') }}</h5>
+                {{ trans('mining-manager::analytics.empty_slice_body') }}
+                @if($filter->moonSource() === \MiningManager\Services\Analytics\ChartFilter::MOON_MINE)
+                    <div class="mt-1">{{ trans('mining-manager::analytics.empty_slice_my_moons') }}</div>
+                @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($filter->moonSource() === \MiningManager\Services\Analytics\ChartFilter::MOON_OTHER)
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info py-2">
+                <i class="fas fa-info-circle"></i> {{ trans('mining-manager::analytics.other_moons_inferred') }}
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($classificationCutover)
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info py-2">
+                <i class="fas fa-clock"></i>
+                {{ trans('mining-manager::analytics.classification_cutover_note', [
+                    'date' => $classificationCutover->format('j M Y'),
+                ]) }}
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- MINING TRENDS --}}
     <div class="row">
@@ -240,6 +328,19 @@
     </div>
 
     {{-- EXPORT OPTIONS --}}
+    @php
+        // The export repeats the page's own slice, so a downloaded file matches
+        // the charts it came from. Empty values are dropped rather than sent as
+        // blanks, which would fail the controller's validation.
+        $exportParams = array_filter([
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'corporation_id' => $corporationId,
+            'moon_source' => $filter->moonSource(),
+            'ore_category' => $filter->oreCategory(),
+            'player_id' => $playerId ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+    @endphp
     @if($features['allow_export_data'] ?? true)
     <div class="row">
         <div class="col-12">
@@ -256,11 +357,11 @@
                         <button class="btn btn-primary export-chart" data-chart="all">
                             <i class="fas fa-download"></i> {{ trans('mining-manager::analytics.export_all_png') }}
                         </button>
-                        <a href="{{ route('mining-manager.analytics.export', ['format' => 'csv', 'start_date' => $startDate->format('Y-m-d'), 'end_date' => $endDate->format('Y-m-d')]) }}" 
+                        <a href="{{ route('mining-manager.analytics.export', array_merge($exportParams, ['format' => 'csv'])) }}" 
                            class="btn btn-success">
                             <i class="fas fa-file-csv"></i> {{ trans('mining-manager::analytics.export_csv') }}
                         </a>
-                        <a href="{{ route('mining-manager.analytics.export', ['format' => 'json', 'start_date' => $startDate->format('Y-m-d'), 'end_date' => $endDate->format('Y-m-d')]) }}" 
+                        <a href="{{ route('mining-manager.analytics.export', array_merge($exportParams, ['format' => 'json'])) }}" 
                            class="btn btn-info">
                             <i class="fas fa-file-code"></i> {{ trans('mining-manager::analytics.export_json') }}
                         </a>

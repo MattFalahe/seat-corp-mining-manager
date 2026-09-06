@@ -20,6 +20,22 @@ return [
     'time_period' => 'Time Period',
     'date_range' => 'Date Range',
     'filter' => 'Filter',
+
+    // Performance Charts slicing.
+    'source' => 'Source',
+    'source_all' => 'All mining',
+    'source_my_moons' => 'My moons only',
+    'source_any_moons' => 'All moon ore',
+    'source_other_moons' => 'Other moons only',
+    'ore_type' => 'Ore',
+    'ore_type_all' => 'All ore types',
+    'player' => 'Player',
+    'player_all' => 'All players',
+    'other_moons_inferred' => 'Other moons is worked out, not recorded. These are rows of moon ore that none of your observers saw, which nearly always means a moon belonging to someone else, though it can also mean one of yours with no observer set up. The ledger never says whose moon it was.',
+    'classification_cutover_note' => 'Mining before :date is shown under the categories it was billed on at the time. Ore that CCP added after the old registry was written was classified wrongly back then, and that history has been left as it is so that no past bill can change. Expect this chart to under-report those ore types before that date.',
+    'empty_slice_title' => 'Nothing mined in this slice',
+    'empty_slice_body' => 'The filters are working, there is just no mining that matches all of them in this date range. Widen the dates or clear one of the filters.',
+    'empty_slice_my_moons' => 'My moons reads the corporation observer list. If no observers are recorded for the moon owner, nothing can match.',
     
     // Metrics
     'total_volume' => 'Total Volume',

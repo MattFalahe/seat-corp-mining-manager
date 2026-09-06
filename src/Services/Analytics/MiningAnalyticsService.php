@@ -253,16 +253,18 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return \Illuminate\Support\Collection
      */
-    public function getTopMinersByAccount(Carbon $startDate, Carbon $endDate, int $limit = 20, ?int $corporationId = null)
+    public function getTopMinersByAccount(Carbon $startDate, Carbon $endDate, int $limit = 20, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $cacheKey = "mining-analytics:top-miners-account:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}:{$limit}" . $this->corpCacheKey($corporationId);
+        $filter = $filter ?? ChartFilter::none();
+        $cacheKey = "mining-analytics:top-miners-account:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}:{$limit}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $limit, $corporationId) {
+        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $limit, $corporationId, $filter) {
             // Get per-character mining data (left join so non-SeAT characters are included)
             $query = MiningLedger::whereBetween('mining_ledger.date', [$startDate, $endDate])
                 ->leftJoin('character_infos', 'mining_ledger.character_id', '=', 'character_infos.character_id');
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
             $perCharacter = $query->select(
                     'mining_ledger.character_id',
                     'character_infos.name',
@@ -357,17 +359,19 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return \Illuminate\Support\Collection
      */
-    public function getOreBreakdown(Carbon $startDate, Carbon $endDate, ?string $category = null, ?int $corporationId = null)
+    public function getOreBreakdown(Carbon $startDate, Carbon $endDate, ?string $category = null, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
+        $filter = $filter ?? ChartFilter::none();
         $categoryKey = $category ?? 'all';
-        $cacheKey = "mining-analytics:ore-breakdown:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}:{$categoryKey}" . $this->corpCacheKey($corporationId);
+        $cacheKey = "mining-analytics:ore-breakdown:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}:{$categoryKey}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $category, $corporationId) {
+        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $category, $corporationId, $filter) {
             $query = MiningLedger::with('type')
                 ->whereBetween('mining_ledger.date', [$startDate, $endDate]);
 
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
 
             // Filter by ore category if specified
             if ($category) {
@@ -402,15 +406,17 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return \Illuminate\Support\Collection
      */
-    public function getSystemBreakdown(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getSystemBreakdown(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $cacheKey = "mining-analytics:system-breakdown:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId);
+        $filter = $filter ?? ChartFilter::none();
+        $cacheKey = "mining-analytics:system-breakdown:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId) {
+        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId, $filter) {
             $query = MiningLedger::with('solarSystem')
                 ->whereBetween('mining_ledger.date', [$startDate, $endDate]);
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
             $results = $query->select(
                     'mining_ledger.solar_system_id',
                     DB::raw('SUM(mining_ledger.quantity) as total_quantity'),
@@ -437,14 +443,16 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return \Illuminate\Support\Collection
      */
-    public function getDailyTrends(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getDailyTrends(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $cacheKey = "mining-analytics:daily-trends:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId);
+        $filter = $filter ?? ChartFilter::none();
+        $cacheKey = "mining-analytics:daily-trends:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId) {
+        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId, $filter) {
             $query = MiningLedger::whereBetween('mining_ledger.date', [$startDate, $endDate]);
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
             return $query->select(
                     'mining_ledger.date',
                     DB::raw('SUM(mining_ledger.quantity) as total_quantity'),
@@ -574,13 +582,20 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return array
      */
-    public function getExportData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null): array
+    public function getExportData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null): array
     {
+        $filter = $filter ?? ChartFilter::none();
+
         $query = MiningLedger::whereBetween('mining_ledger.date', [$startDate, $endDate])
             ->join('character_infos', 'mining_ledger.character_id', '=', 'character_infos.character_id')
             ->join('invTypes', 'mining_ledger.type_id', '=', 'invTypes.typeID')
             ->join('solar_systems', 'mining_ledger.solar_system_id', '=', 'solar_systems.system_id');
         $this->applyCorporationFilter($query, $corporationId);
+
+        // Same slice as the charts above the button. An export that quietly
+        // ignored the filters would hand somebody a file that disagrees with
+        // the page they took it from.
+        $filter->applyTo($query);
         return $query->select(
                 'character_infos.name as character',
                 'invTypes.typeName as ore_type',
@@ -612,9 +627,9 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return \Illuminate\Support\Collection
      */
-    public function getMiningTrendData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getMiningTrendData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        return $this->getDailyTrends($startDate, $endDate, $corporationId);
+        return $this->getDailyTrends($startDate, $endDate, $corporationId, $filter);
     }
 
     /**
@@ -638,14 +653,16 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return array
      */
-    public function getOreDistributionData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getOreDistributionData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $cacheKey = "mining-analytics:ore-distribution-cat:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId);
+        $filter = $filter ?? ChartFilter::none();
+        $cacheKey = "mining-analytics:ore-distribution-cat:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        $byCategory = Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId) {
+        $byCategory = Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId, $filter) {
             $query = MiningLedger::whereBetween('mining_ledger.date', [$startDate, $endDate]);
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
             return $query->select(
                     DB::raw("COALESCE(mining_ledger.ore_category, 'unknown') as category"),
                     DB::raw('SUM(mining_ledger.total_value) as total_value'),
@@ -685,9 +702,9 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return array
      */
-    public function getMinerActivityData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getMinerActivityData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $topMiners = $this->getTopMinersByAccount($startDate, $endDate, 10, $corporationId);
+        $topMiners = $this->getTopMinersByAccount($startDate, $endDate, 10, $corporationId, $filter);
 
         return [
             'labels' => $topMiners->pluck('name')->toArray(),
@@ -704,9 +721,9 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return array
      */
-    public function getSystemActivityData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getSystemActivityData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $systemBreakdown = $this->getSystemBreakdown($startDate, $endDate, $corporationId);
+        $systemBreakdown = $this->getSystemBreakdown($startDate, $endDate, $corporationId, $filter);
 
         return [
             'labels' => $systemBreakdown->pluck('system_name')->toArray(),
@@ -723,15 +740,17 @@ class MiningAnalyticsService
      * @param int|null $corporationId Filter by miner's corporation
      * @return array
      */
-    public function getHeatmapData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null)
+    public function getHeatmapData(Carbon $startDate, Carbon $endDate, ?int $corporationId = null, ?ChartFilter $filter = null)
     {
-        $cacheKey = "mining-analytics:heatmap:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId);
+        $filter = $filter ?? ChartFilter::none();
+        $cacheKey = "mining-analytics:heatmap:{$startDate->format('Ymd')}:{$endDate->format('Ymd')}" . $this->corpCacheKey($corporationId) . $filter->cacheKey();
         $cacheDuration = config('mining-manager.performance.query_cache_duration', 15);
 
-        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId) {
+        return Cache::remember($cacheKey, now()->addMinutes($cacheDuration), function () use ($startDate, $endDate, $corporationId, $filter) {
             // Get daily data per character
             $query = MiningLedger::whereBetween('mining_ledger.date', [$startDate, $endDate]);
             $this->applyCorporationFilter($query, $corporationId);
+            $filter->applyTo($query);
             $raw = $query->select(
                     'mining_ledger.date',
                     'mining_ledger.character_id',

@@ -8,6 +8,42 @@ Wallet payment verification, rebuilt. A member who sends their tax ISK without p
 
 > Mental model: a wallet transfer is money looking for an invoice. Matching it by tax code is the fast path; assigning it by hand is the fallback. Either way the transfer is claimed exactly once, and every invoice it touches records its slice.
 
+### ✨ Performance Charts can be sliced
+
+Overview and Performance Charts were showing much the same material: three of the five
+charts were the same queries in a different container. Charts now has a job Overview
+cannot do.
+
+Three filters, on top of the dates and corporation already there:
+
+**Source.** All mining, my moons only, all moon ore, or other moons only. My moons reads
+the corporation observer list, so it means what it says rather than guessing from the ore.
+
+**Ore.** Regular ore, moon ore, ice, gas, abyssal, triglavian.
+
+**Player.** Picked by main character and applied across every character that player mines
+on, using the same account resolution the payment matcher uses. One question, one answer,
+rather than two implementations that drift.
+
+The export button carries the same slice, so a downloaded file matches the page it came
+from.
+
+Two things the page tells you rather than leaving you to find out. **Other moons is
+inferred**, not recorded: it means moon ore that none of your observers saw, which usually
+means somebody else's moon and occasionally means one of yours with no observer. And any
+filter that reads ore classification says so when it does, because mining from before the
+classification cutover carries the categories it was billed on. Those older rows
+under-report the ore families CCP added after the original registry was written, and that
+history was left alone on purpose so no past bill can change.
+
+Filtering that finds nothing says so, and says why, instead of showing five empty charts.
+
+Under the surface, the filter is one object that owns both the query it builds and the
+cache key that describes it. Every figure on this page is cached for fifteen minutes on a
+hand-built key, so a filter added to a query but forgotten in a key would have served
+another slice's numbers: no error, no empty result, just plausible wrong totals. Keeping
+both halves in one place is what stops that, rather than remembering to.
+
 ### 🐛 Allow Data Export decided nothing
 
 The setting had never worked. Two of the views reading it were served by a controller that

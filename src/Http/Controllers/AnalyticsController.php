@@ -11,10 +11,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use MiningManager\Http\Controllers\Concerns\GuardsDataExport;
+use MiningManager\Services\Analytics\ChartFilter;
+use MiningManager\Services\Tax\Concerns\ResolvesCharacterOwnership;
+use MiningManager\Services\Tax\ClassificationEpoch;
 
 class AnalyticsController extends Controller
 {
     use GuardsDataExport;
+
+    // Same helper the payment matcher uses to decide which characters belong to
+    // one player. Charts ask the same question, and two answers to it would
+    // eventually disagree.
+    use ResolvesCharacterOwnership;
 
     /**
      * Analytics service
@@ -177,6 +185,9 @@ class AnalyticsController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'corporation_id' => 'nullable|integer',
+            'moon_source' => 'nullable|in:' . implode(',', ChartFilter::MOON_SOURCES),
+            'ore_category' => 'nullable|in:' . implode(',', array_keys(ChartFilter::ORE_CATEGORIES)),
+            'player_id' => 'nullable|integer',
         ]);
 
         try {
@@ -193,19 +204,49 @@ class AnalyticsController extends Controller
             $corporationId = $this->getCorporationFilter($request, $corporations);
             $userCorporationId = $this->getUserCorporationId();
 
+            $settings = app(\MiningManager\Services\Configuration\SettingsManagerService::class);
+            $moonOwnerCorporationId = (int) $settings->getSetting('general.moon_owner_corporation_id') ?: null;
+
+            // A player is picked by their main, and the filter wants every
+            // character they mine on. Same resolution the payment matcher uses.
+            $playerId = $request->input('player_id') ? (int) $request->input('player_id') : null;
+            $playerCharacterIds = $playerId ? $this->getCharacterIdsForUserOf($playerId) : [];
+
+            $filter = new ChartFilter(
+                (string) $request->input('moon_source', ChartFilter::MOON_ALL),
+                $request->input('ore_category'),
+                $playerCharacterIds,
+                $moonOwnerCorporationId
+            );
+
             // Get chart data
             $chartData = [
-                'mining_trends' => $this->analyticsService->getMiningTrendData($startDate, $endDate, $corporationId),
-                'ore_distribution' => $this->analyticsService->getOreDistributionData($startDate, $endDate, $corporationId),
-                'miner_activity' => $this->analyticsService->getMinerActivityData($startDate, $endDate, $corporationId),
-                'system_activity' => $this->analyticsService->getSystemActivityData($startDate, $endDate, $corporationId),
-                'heatmap' => $this->analyticsService->getHeatmapData($startDate, $endDate, $corporationId),
+                'mining_trends' => $this->analyticsService->getMiningTrendData($startDate, $endDate, $corporationId, $filter),
+                'ore_distribution' => $this->analyticsService->getOreDistributionData($startDate, $endDate, $corporationId, $filter),
+                'miner_activity' => $this->analyticsService->getMinerActivityData($startDate, $endDate, $corporationId, $filter),
+                'system_activity' => $this->analyticsService->getSystemActivityData($startDate, $endDate, $corporationId, $filter),
+                'heatmap' => $this->analyticsService->getHeatmapData($startDate, $endDate, $corporationId, $filter),
             ];
+
+            // Who to offer in the player picker. Deliberately unfiltered, so
+            // choosing a player never removes them from the list they were
+            // chosen from, and choosing "my moons" does not hide everybody who
+            // only mines belts.
+            $playerOptions = $this->analyticsService
+                ->getTopMinersByAccount($startDate, $endDate, 500, $corporationId);
+
+            // Mining before the classification cutover carries the flags it was
+            // billed on, right or wrong. A chart reading those flags says so
+            // rather than quietly averaging the two eras together.
+            $classificationCutover = $filter->dependsOnClassification()
+                ? ClassificationEpoch::get()
+                : null;
 
             return view('mining-manager::analytics.charts', array_merge(compact(
                 'chartData', 'startDate', 'endDate',
-                'corporationId', 'corporations', 'userCorporationId'
-            ), ['features' => app(\MiningManager\Services\Configuration\SettingsManagerService::class)->getFeatureFlags()]));
+                'corporationId', 'corporations', 'userCorporationId',
+                'filter', 'playerOptions', 'playerId', 'classificationCutover'
+            ), ['features' => $settings->getFeatureFlags()]));
         } catch (\Exception $e) {
             Log::error('Mining Manager: Analytics error: ' . $e->getMessage());
             return back()->with('error', 'An error occurred loading analytics data.');
@@ -768,6 +809,9 @@ class AnalyticsController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'corporation_id' => 'nullable|integer',
+            'moon_source' => 'nullable|in:' . implode(',', ChartFilter::MOON_SOURCES),
+            'ore_category' => 'nullable|in:' . implode(',', array_keys(ChartFilter::ORE_CATEGORIES)),
+            'player_id' => 'nullable|integer',
         ]);
 
         try {
@@ -782,8 +826,20 @@ class AnalyticsController extends Controller
 
             $corporationId = $this->getCorporationFilter($request);
 
+            // The same slice the charts page was showing when the button was
+            // pressed, rebuilt from the query string it passed along.
+            $settings = app(\MiningManager\Services\Configuration\SettingsManagerService::class);
+            $playerId = $request->input('player_id') ? (int) $request->input('player_id') : null;
+
+            $filter = new ChartFilter(
+                (string) $request->input('moon_source', ChartFilter::MOON_ALL),
+                $request->input('ore_category'),
+                $playerId ? $this->getCharacterIdsForUserOf($playerId) : [],
+                (int) $settings->getSetting('general.moon_owner_corporation_id') ?: null
+            );
+
             // Get export data
-            $data = $this->analyticsService->getExportData($startDate, $endDate, $corporationId);
+            $data = $this->analyticsService->getExportData($startDate, $endDate, $corporationId, $filter);
 
             if ($format === 'json') {
                 return response()->json(['data' => $data]);
