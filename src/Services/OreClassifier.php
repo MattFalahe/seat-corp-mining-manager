@@ -6,67 +6,42 @@ namespace MiningManager\Services;
  * What kind of ore a type id is, for tax and for reporting.
  *
  * TypeIdRegistry holds the ids. It says which ids are Bitumens and which are
- * Hezorime, and that is all it should ever say. Deciding that Hezorime counts
- * as abyssal for tax purposes is policy, not data, and it lives here.
+ * Hezorime, and that is all it should ever say. Which tax category an ore falls
+ * under is policy, not data, and it lives here.
  *
  * This used to be six copies. ProcessMiningLedgerCommand, ImportCharacter-
  * MiningCommand, BackfillOreTypeFlagsCommand, EventMiningAggregator,
  * LedgerSummaryService and TaxCalculationService each carried their own version
- * of the same ordered checks. They were written from each other and drifted
- * anyway: five of them answered "moon" where the sixth answered "moon_r4", and
- * all six shared a hardcoded abyssal test that predated nine ore families CCP
- * has since shipped, so every one of them called Hezorime plain belt ore.
+ * of the same ordered checks. They were written from each other and had already
+ * drifted: five answered "moon" for a moon ore with no rarity on file while the
+ * sixth answered "moon_r4", which is a real tax rate.
  *
  * There are two vocabularies here and they are deliberately different. The
  * mining_ledger.ore_category column stores "abyssal" and "triglavian"; the tax
- * rate settings are keyed "abyssal_ore" and "triglavian_ore". Both are public
- * in the sense that data and operator settings already use them, so neither can
- * be quietly renamed to match the other.
+ * rate settings are keyed "abyssal_ore" and "triglavian_ore". Both are already
+ * in stored data and operator settings, so neither can be quietly renamed to
+ * match the other.
  */
 final class OreClassifier
 {
     /**
-     * Ore families that count as abyssal.
+     * The ores that count as abyssal: the Bezdnacine, Rakovene and Talassonite
+     * families.
      *
-     * ABYSSAL_ORES on its own is the original Bezdnacine, Rakovene and
-     * Talassonite set. The nine families below arrived later, were added to the
-     * registry, and were never added to the classification check, which is why
-     * an install taxing abyssal ore collected nothing on them.
-     *
-     * Compressed variants are included for completeness even though they cannot
-     * reach a mining ledger. You compress ore, you do not mine it compressed.
+     * Easy to widen by mistake. The Deep Space Survey families (Mordunium,
+     * Ytirium, Eifyrium, Ducinium) and the Ore Prospecting Array families
+     * (Griemeer, Nocxite, Kylixium, Hezorime, Ueganite) are newer and sound as
+     * though they belong here, but they are nullsec and wormhole asteroid ore
+     * that refines into ordinary minerals. They are regular ore. Counting them
+     * as abyssal would move them off an operator's ore rate and onto the
+     * abyssal one, and on an install that taxes ore but not abyssal ore they
+     * would quietly stop being charged.
      *
      * @return array<int>
      */
     public static function abyssalTypeIds(): array
     {
-        static $cache = null;
-
-        if ($cache !== null) {
-            return $cache;
-        }
-
-        return $cache = array_merge(
-            TypeIdRegistry::ABYSSAL_ORES,
-            TypeIdRegistry::MORDUNIUM_ORES,
-            TypeIdRegistry::COMPRESSED_MORDUNIUM_ORES,
-            TypeIdRegistry::YTIRIUM_ORES,
-            TypeIdRegistry::COMPRESSED_YTIRIUM_ORES,
-            TypeIdRegistry::EIFYRIUM_ORES,
-            TypeIdRegistry::COMPRESSED_EIFYRIUM_ORES,
-            TypeIdRegistry::DUCINIUM_ORES,
-            TypeIdRegistry::COMPRESSED_DUCINIUM_ORES,
-            TypeIdRegistry::GRIEMEER_ORES,
-            TypeIdRegistry::COMPRESSED_GRIEMEER_ORES,
-            TypeIdRegistry::NOCXITE_ORES,
-            TypeIdRegistry::COMPRESSED_NOCXITE_ORES,
-            TypeIdRegistry::KYLIXIUM_ORES,
-            TypeIdRegistry::COMPRESSED_KYLIXIUM_ORES,
-            TypeIdRegistry::HEZORIME_ORES,
-            TypeIdRegistry::COMPRESSED_HEZORIME_ORES,
-            TypeIdRegistry::UEGANITE_ORES,
-            TypeIdRegistry::COMPRESSED_UEGANITE_ORES
-        );
+        return TypeIdRegistry::ABYSSAL_ORES;
     }
 
     public static function isAbyssal(int $typeId): bool
@@ -79,8 +54,8 @@ final class OreClassifier
      *
      * Order matters and is the order the plugin has always used. Moon ore is
      * decided first because a moon rock is a moon rock whatever else it might
-     * also be, and plain ore is the fallback rather than a category anything is
-     * positively identified as.
+     * also be, and regular ore is the fallback rather than a category anything
+     * is positively identified as.
      */
     public static function category(int $typeId): string
     {
@@ -142,25 +117,5 @@ final class OreClassifier
         }
 
         return 'ore';
-    }
-
-    /**
-     * The five booleans every import path stamps on a ledger row.
-     *
-     * Returned together so an importer cannot set four of them from here and
-     * work the fifth out for itself, which is how the abyssal flag came to
-     * disagree with the category sitting next to it.
-     *
-     * @return array{is_moon_ore:bool,is_ice:bool,is_gas:bool,is_abyssal:bool,is_triglavian:bool}
-     */
-    public static function flags(int $typeId): array
-    {
-        return [
-            'is_moon_ore' => TypeIdRegistry::isMoonOre($typeId),
-            'is_ice' => TypeIdRegistry::isIce($typeId),
-            'is_gas' => TypeIdRegistry::isGas($typeId),
-            'is_abyssal' => self::isAbyssal($typeId),
-            'is_triglavian' => TypeIdRegistry::isTriglavianOre($typeId),
-        ];
     }
 }

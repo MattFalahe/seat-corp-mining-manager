@@ -8,33 +8,17 @@ Wallet payment verification, rebuilt. A member who sends their tax ISK without p
 
 > Mental model: a wallet transfer is money looking for an invoice. Matching it by tax code is the fast path; assigning it by hand is the fallback. Either way the transfer is claimed exactly once, and every invoice it touches records its slice.
 
-### 🐛 Nine ore families were being taxed as belt ore
-
-Mordunium, Ytirium, Eifyrium, Ducinium, Griemeer, Nocxite, Kylixium, Hezorime and Ueganite
-were classified as plain ore rather than abyssal. If you tax abyssal ore, you have been
-collecting nothing on any of them.
-
-The check that decides what counts as abyssal was written before those families existed and
-has never been widened. The registry has known about them since the last release; the
-classifier simply never asked it.
-
-**Anyone taxing abyssal ore should expect their revenue to go up after this release.** It
-applies only to mining recorded after you upgrade, exactly like every other classification
-change: no invoice already issued moves, and no existing row is rewritten.
-
-If you tax abyssal ore at a rate you set years ago and forgot about, this is the release to
-go and look at it.
-
 ### 🧹 One ore classifier instead of six
 
-The same ordered "is it moon, ice, gas, abyssal or belt ore" decision existed in six places:
-both importers, the backfill command, the event aggregator, the ledger summaries and the tax
-calculator. They were copied from each other and had already drifted, one of them answering
-`moon_r4` where the other five answered `moon`.
+The same ordered "is it moon ore, ice, gas, abyssal or regular ore" decision existed in six
+places: both importers, the backfill command, the event aggregator, the ledger summaries and
+the tax calculator. They were copied from each other and had already drifted, one of them
+answering `moon_r4` for a moon ore with no rarity on file where the other five answered
+`moon`. Nothing that is actually mined reaches that case, which is why it went unseen, but a
+copy drifting quietly is how a real misclassification starts.
 
-That is why the abyssal gap was in all six at once. There is now a single `OreClassifier`
-the six call into. `TypeIdRegistry` is untouched and stays what it has always been: a list of
-type ids, not a place where policy lives.
+There is now a single `OreClassifier` the six call into. No ore that can be mined changes
+category. `TypeIdRegistry` is untouched and stays a list of type ids.
 
 ### ✨ Performance Charts can be sliced
 
