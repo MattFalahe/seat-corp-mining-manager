@@ -17,6 +17,7 @@ use MiningManager\Services\Tax\InvoiceCoverage;
 use MiningManager\Http\Controllers\DashboardController;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use MiningManager\Services\OreClassifier;
 
 class ProcessMiningLedgerCommand extends Command
 {
@@ -226,7 +227,7 @@ class ProcessMiningLedgerCommand extends Command
                     $isMoonOre = TypeIdRegistry::isMoonOre($entry->type_id);
                     $isIce = TypeIdRegistry::isIce($entry->type_id);
                     $isGas = TypeIdRegistry::isGas($entry->type_id);
-                    $isAbyssal = in_array($entry->type_id, TypeIdRegistry::ABYSSAL_ORES);
+                    $isAbyssal = OreClassifier::isAbyssal($entry->type_id);
                     $isTriglavian = TypeIdRegistry::isTriglavianOre($entry->type_id);
                     $oreCategory = $this->classifyOreCategory($entry->type_id);
 
@@ -653,28 +654,7 @@ class ProcessMiningLedgerCommand extends Command
      */
     private function classifyOreCategory(int $typeId): string
     {
-        if (TypeIdRegistry::isMoonOre($typeId)) {
-            $rarity = TypeIdRegistry::getMoonOreRarity($typeId);
-            return $rarity ? 'moon_' . $rarity : 'moon';
-        }
-
-        if (TypeIdRegistry::isIce($typeId)) {
-            return 'ice';
-        }
-
-        if (TypeIdRegistry::isGas($typeId)) {
-            return 'gas';
-        }
-
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) {
-            return 'abyssal';
-        }
-
-        if (TypeIdRegistry::isTriglavianOre($typeId)) {
-            return 'triglavian';
-        }
-
-        return 'ore';
+        return OreClassifier::category($typeId);
     }
 
     /**

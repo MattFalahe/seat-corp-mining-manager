@@ -19,6 +19,7 @@ use MiningManager\Models\MonthlyStatistic;
 use MiningManager\Models\MiningLedgerDailySummary;
 use Seat\Eveapi\Models\Character\CharacterInfo;
 use Carbon\Carbon;
+use MiningManager\Services\OreClassifier;
 
 class DashboardController extends Controller
 {
@@ -2109,7 +2110,7 @@ class DashboardController extends Controller
         }
         
         // Check abyssal ore
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) {
+        if (OreClassifier::isAbyssal($typeId)) {
             return 'Abyssal';
         }
 

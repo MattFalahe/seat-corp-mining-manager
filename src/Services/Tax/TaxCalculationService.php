@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Seat\Eveapi\Models\Character\CharacterInfo;
+use MiningManager\Services\OreClassifier;
 
 class TaxCalculationService
 {
@@ -835,43 +836,7 @@ class TaxCalculationService
      */
     private function getOreCategory(int $typeId): string
     {
-        // Check each category using TypeIdRegistry
-        if (TypeIdRegistry::isMoonOre($typeId)) {
-            return 'moon';
-        }
-        
-        if (TypeIdRegistry::isIce($typeId)) {
-            return 'ice';
-        }
-        
-        if (TypeIdRegistry::isGas($typeId)) {
-            return 'gas';
-        }
-        
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) {
-            return 'abyssal_ore';
-        }
-
-        if (TypeIdRegistry::isTriglavianOre($typeId)) {
-            return 'triglavian_ore';
-        }
-
-        // Check if it's one of the new ore types
-        if (TypeIdRegistry::isOreProspectingArrayOre($typeId)) {
-            return 'ore';
-        }
-        
-        if (TypeIdRegistry::isDeepSpaceSurveyOre($typeId)) {
-            return 'ore';
-        }
-        
-        // Check if it's a regular ore
-        if (TypeIdRegistry::isRegularOre($typeId)) {
-            return 'ore';
-        }
-        
-        // Default fallback
-        return 'ore';
+        return OreClassifier::taxCategory($typeId);
     }
 
     /**

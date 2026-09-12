@@ -12,6 +12,7 @@ use MiningManager\Services\Tax\ClassificationEpoch;
 use MiningManager\Services\Tax\InvoiceCoverage;
 use MiningManager\Services\Ledger\LedgerSummaryService;
 use Carbon\Carbon;
+use MiningManager\Services\OreClassifier;
 
 class ImportCharacterMiningCommand extends Command
 {
@@ -156,7 +157,7 @@ class ImportCharacterMiningCommand extends Command
                 $isMoonOre = TypeIdRegistry::isMoonOre($entry->type_id);
                 $isIce = TypeIdRegistry::isIce($entry->type_id);
                 $isGas = TypeIdRegistry::isGas($entry->type_id);
-                $isAbyssal = in_array($entry->type_id, TypeIdRegistry::ABYSSAL_ORES);
+                $isAbyssal = OreClassifier::isAbyssal($entry->type_id);
                 $isTriglavian = TypeIdRegistry::isTriglavianOre($entry->type_id);
                 $oreCategory = $this->classifyOreCategory($entry->type_id);
 
@@ -284,14 +285,6 @@ class ImportCharacterMiningCommand extends Command
 
     private function classifyOreCategory(int $typeId): string
     {
-        if (TypeIdRegistry::isMoonOre($typeId)) {
-            $rarity = TypeIdRegistry::getMoonOreRarity($typeId);
-            return $rarity ? 'moon_' . $rarity : 'moon';
-        }
-        if (TypeIdRegistry::isIce($typeId)) return 'ice';
-        if (TypeIdRegistry::isGas($typeId)) return 'gas';
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) return 'abyssal';
-        if (TypeIdRegistry::isTriglavianOre($typeId)) return 'triglavian';
-        return 'ore';
+        return OreClassifier::category($typeId);
     }
 }

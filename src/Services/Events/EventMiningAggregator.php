@@ -7,11 +7,11 @@ use MiningManager\Models\MiningLedger;
 use MiningManager\Models\EventMiningRecord;
 use MiningManager\Services\Configuration\SettingsManagerService;
 use MiningManager\Services\Pricing\OreValuationService;
-use MiningManager\Services\TypeIdRegistry;
 use Seat\Eveapi\Models\Industry\CharacterMining;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use MiningManager\Services\OreClassifier;
 
 /**
  * EventMiningAggregator
@@ -278,7 +278,7 @@ class EventMiningAggregator
      * (the time reflects when SeAT fetched the entry, not the literal EVE
      * mining moment — but it's the best sub-day signal we have for belt/
      * ice/gas events). Ore category must be classified per-row via
-     * TypeIdRegistry.
+     * OreClassifier.
      *
      * @param MiningEvent $event
      * @param array $allowedCategories Non-moon categories to include.
@@ -582,22 +582,6 @@ class EventMiningAggregator
      */
     private function classifyOreCategory(int $typeId): string
     {
-        if (TypeIdRegistry::isMoonOre($typeId)) {
-            $rarity = TypeIdRegistry::getMoonOreRarity($typeId);
-            return $rarity ? 'moon_' . $rarity : 'moon';
-        }
-        if (TypeIdRegistry::isIce($typeId)) {
-            return 'ice';
-        }
-        if (TypeIdRegistry::isGas($typeId)) {
-            return 'gas';
-        }
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES, true)) {
-            return 'abyssal';
-        }
-        if (TypeIdRegistry::isTriglavianOre($typeId)) {
-            return 'triglavian';
-        }
-        return 'ore';
+        return OreClassifier::category($typeId);
     }
 }

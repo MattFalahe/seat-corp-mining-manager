@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use MiningManager\Services\Tax\InvoiceCoverage;
+use MiningManager\Services\OreClassifier;
 
 class LedgerSummaryService
 {
@@ -569,7 +570,7 @@ class LedgerSummaryService
             return (float) ($taxRates['gas'] ?? 10.0);
         }
 
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) {
+        if (OreClassifier::isAbyssal($typeId)) {
             return (float) ($taxRates['abyssal_ore'] ?? 15.0);
         }
 
@@ -622,7 +623,7 @@ class LedgerSummaryService
             return $taxSelector['gas'] ?? false;
         }
 
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES)) {
+        if (OreClassifier::isAbyssal($typeId)) {
             return $taxSelector['abyssal_ore'] ?? false;
         }
 
@@ -688,23 +689,7 @@ class LedgerSummaryService
      */
     private function getOreCategory(int $typeId): string
     {
-        if (TypeIdRegistry::isMoonOre($typeId)) {
-            $rarity = TypeIdRegistry::getMoonOreRarity($typeId);
-            return $rarity ? 'moon_' . $rarity : 'moon_r4';
-        }
-        if (TypeIdRegistry::isIce($typeId)) {
-            return 'ice';
-        }
-        if (TypeIdRegistry::isGas($typeId)) {
-            return 'gas';
-        }
-        if (in_array($typeId, TypeIdRegistry::ABYSSAL_ORES, true)) {
-            return 'abyssal';
-        }
-        if (TypeIdRegistry::isTriglavianOre($typeId)) {
-            return 'triglavian';
-        }
-        return 'ore';
+        return OreClassifier::category($typeId);
     }
 
     /**

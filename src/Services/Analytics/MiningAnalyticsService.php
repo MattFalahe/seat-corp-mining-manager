@@ -10,6 +10,7 @@ use MiningManager\Services\TypeIdRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use MiningManager\Services\OreClassifier;
 
 /**
  * Mining Analytics Service for SeAT v5.x
@@ -899,7 +900,7 @@ class MiningAnalyticsService
             'regular_ore' => TypeIdRegistry::REGULAR_ORES,
             'ice' => array_merge(TypeIdRegistry::ICE, TypeIdRegistry::COMPRESSED_ICE),
             'gas' => array_merge(TypeIdRegistry::GAS_FULLERITES, TypeIdRegistry::GAS_BOOSTERS),
-            'abyssal_ore' => TypeIdRegistry::ABYSSAL_ORES,
+            'abyssal_ore' => OreClassifier::abyssalTypeIds(),
             'triglavian_ore' => TypeIdRegistry::TRIGLAVIAN_ORES,
             default => [],
         };

@@ -8,6 +8,7 @@ use MiningManager\Models\MiningLedger;
 use MiningManager\Services\TypeIdRegistry;
 use MiningManager\Services\Tax\ClassificationEpoch;
 use Illuminate\Support\Facades\DB;
+use MiningManager\Services\OreClassifier;
 
 class BackfillOreTypeFlagsCommand extends Command
 {
@@ -104,7 +105,7 @@ class BackfillOreTypeFlagsCommand extends Command
                     $isMoonOre = TypeIdRegistry::isMoonOre($entry->type_id);
                     $isIce = TypeIdRegistry::isIce($entry->type_id);
                     $isGas = TypeIdRegistry::isGas($entry->type_id);
-                    $isAbyssal = in_array($entry->type_id, TypeIdRegistry::ABYSSAL_ORES, true);
+                    $isAbyssal = OreClassifier::isAbyssal($entry->type_id);
                     $isTriglavian = TypeIdRegistry::isTriglavianOre($entry->type_id);
                     $oreCategory = $this->classifyOreCategory(
                         $entry->type_id,
